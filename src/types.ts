@@ -2,6 +2,7 @@
 
 export type ApiMode = 'images' | 'responses'
 export type ApiProvider = 'openai' | 'fal'
+export type GenerationMode = 'single' | 'batch'
 
 export interface ApiProfile {
   id: string

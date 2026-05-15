@@ -6,6 +6,8 @@ export default function SearchBar() {
   const setSearchQuery = useStore((s) => s.setSearchQuery)
   const filterStatus = useStore((s) => s.filterStatus)
   const setFilterStatus = useStore((s) => s.setFilterStatus)
+  const generationMode = useStore((s) => s.generationMode)
+  const setGenerationMode = useStore((s) => s.setGenerationMode)
   const filterFavorite = useStore((s) => s.filterFavorite)
   const setFilterFavorite = useStore((s) => s.setFilterFavorite)
 
@@ -34,6 +36,17 @@ export default function SearchBar() {
               { label: '已完成', value: 'done' },
               { label: '生成中', value: 'running' },
               { label: '失败', value: 'error' },
+            ]}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-white/[0.06] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition"
+          />
+        </div>
+        <div className="relative w-28">
+          <Select
+            value={generationMode}
+            onChange={(val) => setGenerationMode(val as any)}
+            options={[
+              { label: '普通生成', value: 'single' },
+              { label: '批量生成', value: 'batch' },
             ]}
             className="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-white/[0.06] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition"
           />

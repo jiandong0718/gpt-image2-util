@@ -35,6 +35,7 @@ function useIsMobile() {
 export default function InputBar() {
   const prompt = useStore((s) => s.prompt)
   const setPrompt = useStore((s) => s.setPrompt)
+  const generationMode = useStore((s) => s.generationMode)
   const inputImages = useStore((s) => s.inputImages)
   const removeInputImage = useStore((s) => s.removeInputImage)
   const clearInputImages = useStore((s) => s.clearInputImages)
@@ -154,6 +155,18 @@ export default function InputBar() {
   const isMobile = useIsMobile()
 
   const canSubmit = prompt.trim() && settings.apiKey
+  const isBatchMode = generationMode === 'batch'
+  const promptPlaceholder = isBatchMode
+    ? '批量生成：按“主图：...”“背景图：...”“尺寸图：...”分行输入...'
+    : '描述你想生成的图片...'
+  const generateTitle = settings.apiKey
+    ? maskDraft
+      ? '遮罩编辑 (Ctrl+Enter)'
+      : isBatchMode
+        ? '批量生成 (Ctrl+Enter)'
+        : '生成 (Ctrl+Enter)'
+    : '请先配置 API'
+  const generateButtonText = maskDraft ? '遮罩编辑' : isBatchMode ? '批量生成' : '生成图像'
   const activeProfile = getActiveApiProfile(settings)
   const activeProvider = activeProfile.provider
   const isFalProvider = activeProvider === 'fal'
@@ -1221,9 +1234,14 @@ export default function InputBar() {
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder="描述你想生成的图片..."
+            placeholder={promptPlaceholder}
             className="w-full px-4 py-3 rounded-2xl border border-gray-200/60 dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.03] text-sm focus:outline-none leading-relaxed resize-none shadow-sm transition-[border-color,box-shadow] duration-200"
           />
+          {isBatchMode && (
+            <div className="mt-2 px-1 text-[11px] text-gray-400 dark:text-gray-500">
+              批量模式会把每个“标题：描述”拆成独立任务；数量参数会应用到每个任务。
+            </div>
+          )}
 
           {/* 参数 + 按钮 */}
           <div className="mt-3">
@@ -1266,7 +1284,7 @@ export default function InputBar() {
                         ? 'bg-gray-300 dark:bg-white/[0.06] text-white cursor-pointer'
                         : 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-white/[0.04] disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
-                    title={settings.apiKey ? (maskDraft ? '遮罩编辑 (Ctrl+Enter)' : '生成 (Ctrl+Enter)') : '请先配置 API'}
+                    title={generateTitle}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -1324,7 +1342,7 @@ export default function InputBar() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                    {maskDraft ? '遮罩编辑' : '生成图像'}
+                    {generateButtonText}
                   </button>
                 </div>
               </div>

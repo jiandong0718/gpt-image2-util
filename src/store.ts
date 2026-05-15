@@ -7,6 +7,7 @@ import type {
   MaskDraft,
   TaskRecord,
   ExportData,
+  GenerationMode,
 } from './types'
 import { DEFAULT_PARAMS } from './types'
 import { DEFAULT_SETTINGS, getActiveApiProfile, mergeImportedSettings, normalizeSettings, validateApiProfile } from './lib/apiProfiles'
@@ -27,6 +28,7 @@ import { getFalErrorMessage, getFalQueuedImageResult, getFalQueueStatus } from '
 import { validateMaskMatchesImage } from './lib/canvasImage'
 import { orderInputImagesForMask } from './lib/mask'
 import { getChangedParams, normalizeParamsForSettings } from './lib/paramCompatibility'
+import { parseBatchPromptSections } from './lib/batchPrompt'
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
 
 // ===== Image cache =====
@@ -78,6 +80,8 @@ interface AppState {
   // 输入
   prompt: string
   setPrompt: (p: string) => void
+  generationMode: GenerationMode
+  setGenerationMode: (mode: GenerationMode) => void
   inputImages: InputImage[]
   addInputImage: (img: InputImage) => void
   removeInputImage: (idx: number) => void
@@ -186,6 +190,8 @@ export const useStore = create<AppState>()(
       // Input
       prompt: '',
       setPrompt: (prompt) => set({ prompt }),
+      generationMode: 'single',
+      setGenerationMode: (generationMode) => set({ generationMode }),
       inputImages: [],
       addInputImage: (img) =>
         set((s) => {
@@ -302,6 +308,7 @@ export const useStore = create<AppState>()(
         settings: state.settings,
         params: state.params,
         prompt: state.prompt,
+        generationMode: state.generationMode,
         inputImages: state.inputImages.map((img) => ({ id: img.id, dataUrl: '' })),
         dismissedCodexCliPrompts: state.dismissedCodexCliPrompts,
       }),
@@ -555,7 +562,50 @@ export async function initStore() {
 
 /** 提交新任务 */
 export async function submitTask(options: { allowFullMask?: boolean } = {}) {
-  const { settings, prompt, inputImages, maskDraft, params, showToast, setConfirmDialog } =
+  const state = useStore.getState()
+  if (state.generationMode === 'batch') {
+    await submitBatchTasks(options)
+    return
+  }
+
+  await submitSingleTask(state.prompt, options, { clearInputAfterSubmit: true })
+}
+
+async function submitBatchTasks(options: { allowFullMask?: boolean } = {}) {
+  const { prompt, showToast, settings } = useStore.getState()
+  const sections = parseBatchPromptSections(prompt)
+
+  if (!prompt.trim()) {
+    showToast('请输入提示词', 'error')
+    return
+  }
+
+  if (sections.length < 2) {
+    showToast('批量生成需要至少 2 个小节，例如“主图：...”和“背景图：...”。', 'error')
+    return
+  }
+
+  let submittedCount = 0
+  for (const section of sections) {
+    const submitted = await submitSingleTask(section.prompt, options, { clearInputAfterSubmit: false })
+    if (!submitted) return
+    submittedCount++
+  }
+
+  if (settings.clearInputAfterSubmit && submittedCount > 0) {
+    useStore.getState().setPrompt('')
+    useStore.getState().clearInputImages()
+  }
+
+  showToast(`已提交 ${submittedCount} 个批量任务`, 'success')
+}
+
+async function submitSingleTask(
+  promptText: string,
+  options: { allowFullMask?: boolean } = {},
+  behavior: { clearInputAfterSubmit: boolean },
+) {
+  const { settings, inputImages, maskDraft, params, showToast, setConfirmDialog } =
     useStore.getState()
 
   const activeProfile = getActiveApiProfile(settings)
@@ -565,9 +615,9 @@ export async function submitTask(options: { allowFullMask?: boolean } = {}) {
     return
   }
 
-  if (!prompt.trim()) {
+  if (!promptText.trim()) {
     showToast('请输入提示词', 'error')
-    return
+    return false
   }
 
   let orderedInputImages = inputImages
@@ -598,7 +648,7 @@ export async function submitTask(options: { allowFullMask?: boolean } = {}) {
         useStore.getState().clearMaskDraft()
       }
       showToast(err instanceof Error ? err.message : String(err), 'error')
-      return
+      return false
     }
   }
 
@@ -616,7 +666,7 @@ export async function submitTask(options: { allowFullMask?: boolean } = {}) {
   const taskId = genId()
   const task: TaskRecord = {
     id: taskId,
-    prompt: prompt.trim(),
+    prompt: promptText.trim(),
     params: normalizedParams,
     apiProvider: activeProfile.provider,
     apiProfileName: activeProfile.name,
@@ -636,13 +686,14 @@ export async function submitTask(options: { allowFullMask?: boolean } = {}) {
   useStore.getState().setTasks([task, ...latestTasks])
   await putTask(task)
 
-  if (settings.clearInputAfterSubmit) {
+  if (behavior.clearInputAfterSubmit && settings.clearInputAfterSubmit) {
     useStore.getState().setPrompt('')
     useStore.getState().clearInputImages()
   }
 
   // 异步调用 API
   executeTask(taskId)
+  return true
 }
 
 async function executeTask(taskId: string) {
