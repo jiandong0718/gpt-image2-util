@@ -2,6 +2,12 @@
 
 基于 OpenAI 图像生成接口的图片生成与编辑工具。提供简洁精美的 Web UI，支持文本生图、参考图与遮罩编辑，数据纯本地化存储，带来流畅的历史记录与参数管理体验。
 
+## 项目用途说明
+
+本仓库作为开源项目的个人留档与学习记录使用，不做商业化用途。
+
+若需将本项目用于商业场景，请自行核对原项目许可证、第三方依赖许可、接口服务条款以及相关合规要求。
+
 > 若需调用非 HTTPS 的内网或本地 HTTP API，请使用 GitHub Pages 版本或自行部署，Vercel 部署的体验版绑定的 `.dev` 域名因安全策略通常要求接口必须为 HTTPS。
 
 [**🌐 Vercel 在线体验**](https://gpt-image-playground.cooksleep.dev) &nbsp;|&nbsp; [**🌐 GitHub Pages 在线体验**](https://cooksleep.github.io/gpt_image_playground)
